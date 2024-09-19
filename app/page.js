@@ -1,101 +1,117 @@
-import Image from "next/image";
+'use client'
+import React, { useState, useEffect } from 'react';
+import { db } from './firebase'; // Ensure db is initialized properly
+import { collection, addDoc, onSnapshot, doc, deleteDoc } from 'firebase/firestore'; // Import Firestore methods
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [newItem, setNewItem] = useState({ name: '', price: '' });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  // Add item to database
+  const addItem = async (e) => {
+    e.preventDefault();
+    if (newItem.name.trim() !== '' && newItem.price !== '') {
+      try {
+        // Add new item to Firestore
+        await addDoc(collection(db, 'items'), {
+          name: newItem.name.trim(),
+          price: parseFloat(newItem.price), // Convert price to number
+        });
+        
+        // Clear form fields
+        setNewItem({ name: '', price: '' });
+      } catch (error) {
+        console.error('Error adding document: ', error);
+      }
+    }
+  };
+
+  // Delete item from database
+  const deleteItem = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'items', id));
+    } catch (error) {
+      console.error('Error deleting document: ', error);
+    }
+  };
+
+  // Use onSnapshot to fetch real-time data
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'items'), (snapshot) => {
+      const itemsArray = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setItems(itemsArray);
+
+      // Calculate total
+      const totalPrice = itemsArray.reduce((acc, item) => acc + parseFloat(item.price || 0), 0); // Ensure price is a number
+      setTotal(totalPrice);
+    });
+
+    // Cleanup listener
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-800">
+      <div className="z-10 w-full max-w-md p-4 bg-slate-800 rounded-lg text-white">
+        <h1 className="text-4xl p-4 text-center">Expense Tracker</h1>
+        <form className="grid grid-cols-6 items-center text-white mb-4">
+          <input
+            value={newItem.name}
+            onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+            className="col-span-3 p-3 border bg-slate-700 text-white"
+            type="text"
+            placeholder="Enter item"
+          />
+          <input
+            value={newItem.price}
+            onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+            className="col-span-2 p-3 border bg-slate-700 text-white"
+            type="number"
+            placeholder="Enter $"
+          />
+          <button
+            onClick={addItem}
+            className="text-white bg-slate-950 hover:bg-slate-900 p-3 text-xl"
+            type="submit"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            +
+          </button>
+        </form>
+        <ul>
+          {items.map((item) => (
+            <li
+              key={item.id}
+              className="my-4 w-full flex justify-between bg-slate-950"
+            >
+              <div className="p-4 w-full flex justify-between">
+                <span className="capitalize text-white">{item.name}</span>
+                <span className="text-white">${item.price}</span>
+              </div>
+              <button
+                onClick={() => deleteItem(item.id)}
+                className="ml-8 p-4 border-1-2 border-slate-900 hover:bg-slate-900 w-16 text-white"
+              >
+                X
+              </button>
+            </li>
+          ))}
+        </ul>
+        {items.length < 1 ? (
+          ''
+        ) : (
+          <div className="flex justify-between p-3 text-white">
+            <span>Total</span>
+            <span>${total.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+
+
